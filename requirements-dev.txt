@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# 开发/CI 用（端到端冒烟脚本需要 Playwright 与 Chromium）
+pytest==9.2.0
+playwright==1.65.2

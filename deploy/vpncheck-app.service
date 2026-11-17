@@ -1,0 +1,28 @@
+[Unit]
+Description=VPN 泄露自检页面（Streamlit）
+After=network-online.target vpncheck-probes.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vpncheck
+Group=vpncheck
+WorkingDirectory=/opt/vpncheck
+Environment=VPNCHECK_CONFIG=/etc/vpncheck/config.toml
+Environment=VPNCHECK_LOG_LEVEL=INFO
+ExecStart=/opt/vpncheck/.venv/bin/streamlit run app.py \
+    --server.address=127.0.0.1 \
+    --server.port=8501 \
+    --server.headless=true \
+    --browser.gatherUsageStats=false
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/vpncheck
+
+[Install]
+WantedBy=multi-user.target

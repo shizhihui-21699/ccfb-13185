@@ -1,0 +1,53 @@
+# 反向代理示例：TLS 终止 + 只放行自检页与采集端需要的路径。
+#
+# 注意两点：
+# 1. 采集端必须保留真实客户端地址，否则出口判定全部失真。若代理与采集端不在
+#    同一台机器，需要在 config.toml 里打开 trust_forwarded_for，并把代理出口
+#    写进 trusted_proxies。
+# 2. Streamlit 走 WebSocket（/_stcore/stream），必须转发 Upgrade。
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name vpncheck.corp.example.com;
+
+    ssl_certificate     /etc/ssl/certs/vpncheck.crt;
+    ssl_certificate_key /etc/ssl/private/vpncheck.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # 自检页
+    location / {
+        proxy_pass http://127.0.0.1:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+        proxy_buffering off;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    # 采集端单独一个域名，便于把它从普通业务的证书/日志策略里区分出来
+    server_name probe-v4.corp.example.com;
+
+    ssl_certificate     /etc/ssl/certs/vpncheck.crt;
+    ssl_certificate_key /etc/ssl/private/vpncheck.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # 采集端自己决定是否信任该头（trust_forwarded_for）
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        add_header Cache-Control "no-store" always;
+    }
+}

@@ -1,0 +1,3 @@
+# 运行依赖。Streamlit 会带上前端静态资源，其余为可选项。
+streamlit==1.67.0
+dnslib==0.9.26

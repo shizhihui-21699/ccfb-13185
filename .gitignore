@@ -16,3 +16,14 @@ node_modules/
 __pycache__/
 .venv/
 venv/
+
+# 本机的真实配置（含公司出口地址），只提交 config.example.toml
+/config.toml
+
+# 运行数据：SQLite 与 Python 缓存
+data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.pytest_cache/
+.ruff_cache/

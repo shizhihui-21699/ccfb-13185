@@ -1,0 +1,20 @@
+services:
+  vpncheck:
+    build: .
+    image: vpncheck:1.0.0
+    restart: unless-stopped
+    environment:
+      VPNCHECK_CONFIG: /data/config.toml
+      VPNCHECK_DB: /data/vpncheck.sqlite3
+      VPNCHECK_LOG_LEVEL: INFO
+    volumes:
+      - ./data:/data:rw
+    ports:
+      - "8501:8501"          # Streamlit 页面
+      - "8090:8090"          # HTTP 采集端
+      - "53:53/udp"          # DNS 探针
+      - "53:53/tcp"
+      - "3478:3478/udp"      # STUN 固定端口（仅用于连通性排查）
+      # STUN 端口池必须整段映射，否则 WebRTC 检测会失败。
+      # 与 config.toml 中 [stun].port_range 保持一致：
+      - "35000-35199:35000-35199/udp"

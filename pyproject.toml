@@ -1,0 +1,24 @@
+[project]
+name = "vpncheck"
+version = "1.0.0"
+description = "公司 VPN 泄露自检（DNS / WebRTC / IPv6）"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "ARG", "SIM"]
+ignore = [
+    "E501",   # 中文注释与提示文案较宽，行宽不做硬性限制
+    "ARG002", # 协议要求但未使用的参数（如 resolver 的 handler）
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG001", "ARG002", "B011"]

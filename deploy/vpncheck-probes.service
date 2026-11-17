@@ -1,0 +1,33 @@
+[Unit]
+Description=VPN 泄露自检探针（HTTP 采集端 + DNS + STUN）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vpncheck
+Group=vpncheck
+WorkingDirectory=/opt/vpncheck
+Environment=VPNCHECK_CONFIG=/etc/vpncheck/config.toml
+Environment=VPNCHECK_LOG_LEVEL=INFO
+ExecStart=/opt/vpncheck/.venv/bin/python scripts/run_probes.py --config /etc/vpncheck/config.toml --db /var/lib/vpncheck/vpncheck.sqlite3
+Restart=on-failure
+RestartSec=3
+
+# 53 端口需要绑定特权端口
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+
+# 加固
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/vpncheck
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

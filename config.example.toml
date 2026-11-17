@@ -1,0 +1,96 @@
+# 公司 VPN 泄露自检服务（示例配置）
+#
+# 复制为 config.toml 后按实际情况填写。所有地址段都用 CIDR 写法。
+# 启动时若出口表仍是本文件的示例地址（RFC 5737 / RFC 3849），页面会显著提示。
+
+[app]
+title = "公司 VPN 泄露自检"
+# 员工访问自检页的地址。用于校验浏览器上报的 Origin。
+public_url = "https://vpncheck.corp.example.com"
+# 页面允许的来源，一般与 public_url 一致；反向代理有多个域名时都写上。
+allowed_origins = ["https://vpncheck.corp.example.com"]
+# 会话有效期（秒）。过期后服务端自动删除该会话的全部观测数据。
+session_ttl_seconds = 900
+# 页面轮询间隔（秒）
+poll_interval_seconds = 1.5
+# 可选：隐私说明页与报修联系方式
+# privacy_notice_url = "https://intranet.corp.example.com/privacy"
+# helpdesk_contact = "IT 服务台 400-000-0000 / it@corp.example.com"
+
+[probes]
+# embedded：探针与 Streamlit 同进程启动，单机最省事（默认）。
+# external：由 scripts/run_probes.py 常驻，页面只读共享 SQLite。
+#           适合 53/3478 需要单独规划、或页面要重启而不想影响探针的场景。
+mode = "embedded"
+
+[collector]
+listen_host = "0.0.0.0"
+listen_port = 8090
+# 采集端对外地址。必须是员工浏览器能直接访问的地址，且只有本服务在使用。
+public_url_v4 = "https://probe-v4.corp.example.com"
+# 浏览器端探测脚本的地址，默认取 public_url_v4 + /probe/client.js。
+# script_url = "https://probe-v4.corp.example.com/probe/client.js"
+# 如要检测 IPv6 泄露，给采集端配一个只解析到 AAAA 的域名：
+# public_url_v6 = "https://probe-v6.corp.example.com"
+# 可选：同时监听 IPv6，让 IPv6 探测真正到达
+# listen_host_v6 = "::"
+# listen_port_v6 = 8090
+# 只有在采集端前面有可信反向代理时才打开，并把代理出口写进 trusted_proxies，
+# 否则 X-Forwarded-For 可被伪造，判定会失真。
+trust_forwarded_for = false
+trusted_proxies = []
+
+[dns]
+enabled = true
+# 探针区域。页面会查询 "<会话标识><序号>.zone" 这类唯一子域。
+# 必须是本服务自己作权威的区域，并且**不要**被公共解析器缓存（TTL 设为 0）。
+zone = "probe.vpncheck.corp.example.com"
+listen_host = "0.0.0.0"
+listen_port = 53
+# 可选：同时监听 IPv6
+# listen_host_v6 = "::"
+# listen_port_v6 = 53
+# 探测子域的应答地址，随便给一个能快速失败的公网地址即可；
+# 这里用 RFC 5737 文档地址，保证不会误连到真实主机。
+answer_ipv4 = ["192.0.2.1"]
+answer_ipv6 = []
+ttl = 0
+# 页面等待解析的时间（秒）
+wait_seconds = 8.0
+
+[stun]
+enabled = true
+# STUN 对外地址，用于 WebRTC 探测。可以是域名。
+public_host_v4 = "stun.corp.example.com"
+public_port_v4 = 3478
+# 每个会话分配一个独立 UDP 端口，便于把 WebRTC 结果精确归属到会话。
+# 需要防火墙放通 base .. base+size-1 的 UDP 入站。
+port_range = { base = 35000, size = 200 }
+# 可选：IPv6 STUN
+# public_host_v6 = "stun-v6.corp.example.com"
+# public_port_v6 = 3478
+# listen_host_v6 = "::"
+
+[policy]
+# 自检页是否只应该从 VPN 内访问。若自检站部署在公网，设为 false，
+# 此时“页面访问出口”不在出口表内只算提示而不是泄露。
+app_requires_tunnel = false
+
+# 公司出口地址表。kind 取值：
+#   corporate       公司 VPN 的公网出口（判定基准）
+#   dns             公司 DNS 的对外出口（如与 corporate 不同才需要单列）
+#   public-resolver 已知的公共解析器，命中时只用于加可读标签
+[[egress]]
+name = "上海办公区 VPN 出口"
+cidr = ["203.0.113.0/24"]
+kind = "corporate"
+
+[[egress]]
+name = "北京办公区 VPN 出口"
+cidr = ["198.51.100.0/24"]
+kind = "corporate"
+
+[[egress]]
+name = "公司 DNS 对外出口"
+cidr = ["192.0.2.0/24"]
+kind = "dns"
