@@ -1,0 +1,18 @@
+services:
+  leakcheck:
+    build: .
+    container_name: vpn-leak-check
+    restart: unless-stopped
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8000:8000"
+      - "8501:8501"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - leakcheck-data:/data
+    environment:
+      - LEAKCHECK_DB=/data/leakcheck.db
+
+volumes:
+  leakcheck-data:

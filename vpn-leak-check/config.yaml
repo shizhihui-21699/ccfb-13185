@@ -1,0 +1,36 @@
+# ============ VPN 泄露自检站配置 ============
+
+# 检测域名。需要把该子域的 NS 记录委托到本服务器（见 README）。
+zone: "check.example.com"
+
+# 本服务器的公网地址（DNS 应答里返回的地址）
+server_ipv4: "203.0.113.10"
+server_ipv6: "2001:db8::10"      # 没有 IPv6 就留空字符串 ""
+
+# 公司 VPN 出口地址列表（CIDR），命中即视为"走了隧道"
+company_egress:
+  - "203.0.113.0/24"
+
+# 公司 DNS 解析器的出口地址（员工 DNS 查询应从这些地址发出）
+company_dns:
+  - "203.0.113.2"
+  - "203.0.113.3"
+
+# 公司 IPv6 出口（若 VPN 不承载 IPv6，可留空，则任何 IPv6 连通都视为泄露）
+company_egress_v6: []
+  # - "2001:db8:1::/48"
+
+# WebRTC 检测使用的 STUN 服务器（建议在内网自建，如 coturn）
+stun_servers:
+  - "stun:stun.l.google.com:19302"
+
+ports:
+  dns: 53        # UDP，权威 DNS
+  api: 8000      # TCP，探针回调 API
+  web: 8501      # TCP，Streamlit 页面
+
+# 若 API 前面有反向代理且信任其 X-Forwarded-For，置 true
+trust_proxy_headers: false
+
+# 数据保留时长（秒），超期的会话与事件自动清理
+retention_seconds: 86400

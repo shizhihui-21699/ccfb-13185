@@ -1,0 +1,5 @@
+streamlit>=1.37,<1.68
+fastapi>=0.110
+uvicorn>=0.29
+dnslib>=0.9
+PyYAML>=6.0
