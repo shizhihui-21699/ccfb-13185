@@ -1,0 +1,26 @@
+[Unit]
+Description=VPN Leak Check collector (HTTP API)
+Documentation=file:///opt/leakcheck/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=leakcheck
+Group=leakcheck
+WorkingDirectory=/opt/leakcheck
+Environment=LEAKCHECK_CONFIG=/etc/leakcheck/config.yaml
+ExecStart=/opt/leakcheck/.venv/bin/python -m leakcheck collector
+Restart=on-failure
+RestartSec=3
+# The service never needs to escalate or write outside its data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/leakcheck
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

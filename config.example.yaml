@@ -1,0 +1,136 @@
+# =============================================================================
+# VPN 流量泄露自检服务 —— 配置示例
+#
+# 复制为 config.yaml 后按公司实际情况修改。必须先改的三处：
+#   1. site.probe_domain         —— 委派给本服务的域名（权威 DNS 探针用）
+#   2. exit_inventory.vpn_egress —— 公司 VPN 的公网出口地址段（判定基准）
+#   3. server.hmac_secret        —— 会话令牌签名密钥（生产必须固定）
+#
+# 全量配置校验：python -m leakcheck check
+# =============================================================================
+
+site:
+  title: VPN 流量泄露自检
+  # 该域名的 NS 记录必须指向本服务的 DNS 探针（见 deploy/DNS-DELEGATION.md）。
+  # 所有 <token>.probe_domain 的解析都会到达这里，服务端据此看到递归解析器的出口。
+  probe_domain: probe.example-corp.net
+
+server:
+  # 采集端的公网地址。浏览器探针直接调用它，必须能从员工端访问。
+  public_base_url: https://leakcheck.example-corp.net
+  collector_bind: 127.0.0.1      # 由反向代理转发；不要直接暴露到公网
+  collector_port: 8081
+
+  # 只有来自这些地址的请求，才会采信 X-Forwarded-For。
+  trusted_proxies:
+    - 127.0.0.0/8
+    - ::1/128
+    - 10.0.0.0/8
+
+  # 允许跨域调用采集端 API 的前端来源。Streamlit 与采集端同域时留 ["*"] 也可，
+  # 分域部署时请填具体来源，例如 ["https://leakcheck.example-corp.net"]。
+  allowed_origins:
+    - "*"
+
+  database_path: data/leakcheck.db
+  session_ttl_seconds: 900        # 一个自检会话的有效期
+  max_probes: 24                  # 每个会话最多接受的探测次数
+  rate_limit_per_minute: 60       # 同一来源 IP 每分钟的上报上限
+
+  # 生产环境请固定密钥（否则进程重启后旧令牌全部失效）。
+  # 也可以改用环境变量 LEAKCHECK_HMAC_SECRET。
+  hmac_secret: "请替换为 32 字节以上的随机字符串"
+  # 生成方式：python -c "import secrets;print(secrets.token_urlsafe(32))"
+
+dns:
+  enabled: true
+  bind_host: 0.0.0.0             # 必须是可被公网解析器访问到的地址
+  bind_port: 53
+  # 必须与 site.probe_domain 一致（探针子域直接挂在它下面）
+  zone: probe.example-corp.net
+
+  # 探针子域返回的地址。建议填一个你控制的、能记录访问的地址，
+  # 这样即使页面只发起 HTTPS 请求也能看到一次 TCP 级观测。
+  answer_ipv4:
+    - 203.0.113.10
+  answer_ipv6: []                # 如公司有 IPv6，填一个公网地址以验证 AAAA 路径
+  answer_ttl: 0                  # 0 = 不缓存，保证每次探测都到达权威服务器
+
+  probe_token_ttl: 600           # 探针令牌有效期（秒）
+  reflect_ecs_prefix: 0          # 0 = 原样回显 ECS；>0 = 改写 scope 前缀（用于验证 ECS 透传）
+  echo_form: true                # 对 TXT 查询回显，便于诊断
+  max_udp_payload: 1400
+  worker_threads: 8
+
+stun:
+  enabled: true
+  bind_host: 0.0.0.0
+  # 每个自检会话独占其中一个 UDP 端口，用于把 STUN 报文归因到会话。
+  # 端口越多，可同时自检的人数越多。需要在防火墙/安全组放行 UDP。
+  ports:
+    - 3478
+    - 3479
+    - 3480
+    - 3481
+    - 3482
+    - 3483
+    - 3484
+    - 3485
+    - 3486
+    - 3487
+    - 3488
+    - 3489
+
+  # 浏览器需要访问的公网地址（留空则用 public_base_url 的主机名）。
+  # 如果 STUN 单独部署在其他 IP 上，请在这里显式填写。
+  public_ips: []
+  bind_ipv6: true                # 同时在所有端口上监听 IPv6
+
+http_probe:
+  # 仅用于运维参考：这些是常见浏览器的加密 DNS 端点，
+  # 当 DNS 通道无数据时，可在诊断页提示员工检查。
+  doh_endpoints:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  quic_probe_urls: []
+
+exit_inventory:
+  # ⚠ 判定基准。空清单会让所有流量都被判为泄露，启动时会报错。
+  vpn_egress:
+    name: 公司 VPN 出口
+    description: 所有员工经 VPN 出网时应出现的公网地址
+    addresses:
+      - 198.51.100.0/24
+      - 2001:db8:100::/48
+
+  # 内网递归解析器访问上游时的出口地址（与 vpn_egress 不同则分开填）。
+  corp_resolvers:
+    name: 公司解析器出口
+    description: 内网 DNS 向上游递归时使用 NAT 出口地址
+    addresses:
+      - 198.51.100.21/32
+      - 198.51.100.22/32
+
+  # 办公网直出地址段：在办公区属正常，出差时出现则说明未进隧道。
+  office_egress:
+    name: 办公网直出
+    description: 员工在办公区不连 VPN 时的出口
+    addresses:
+      - 203.0.113.0/24
+
+  # 已知公共解析器：命中即说明解析没走公司路径。
+  # 不配置时使用内置清单（Google / Cloudflare / Quad9 / OpenDNS / AdGuard 等）。
+  # known_third_party_resolvers: {}
+
+  # 不参与判定的地址段（内网、回环、链路本地等）。可留空使用内置默认值。
+  # ignored_ranges: []
+
+remediation:
+  org_name: 示例公司
+  support_contact: IT 服务台（分机 1234 / it@example-corp.net）
+  support_url: https://intra.example-corp.net/it/vpn-help
+  # 内网 DNS 地址，会出现在修复建议里
+  internal_dns_servers:
+    - 10.10.0.53
+    - 10.10.0.54
+  internal_ca_url: https://intra.example-corp.net/ca

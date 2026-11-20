@@ -1,0 +1,26 @@
+services:
+  leakcheck:
+    build: .
+    image: leakcheck:1.0.0
+    container_name: leakcheck
+    restart: unless-stopped
+    # DNS (53/udp+tcp) and STUN (udp pool) need host networking to see the real
+    # peer address; NAT would rewrite it and every verdict would be wrong.
+    network_mode: host
+    environment:
+      LEAKCHECK_CONFIG: /etc/leakcheck/config.yaml
+      # Production must pin the signing key, otherwise tokens die on restart.
+      LEAKCHECK_HMAC_SECRET: ${LEAKCHECK_HMAC_SECRET:?set LEAKCHECK_HMAC_SECRET}
+    volumes:
+      - ./config.yaml:/etc/leakcheck/config.yaml:ro
+      - leakcheck-data:/var/lib/leakcheck
+    command: ["python", "-m", "leakcheck", "all"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8081/healthz',timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  leakcheck-data:

@@ -1,0 +1,27 @@
+[Unit]
+Description=VPN Leak Check authoritative DNS probe (53/udp + 53/tcp)
+Documentation=file:///opt/leakcheck/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=leakcheck
+Group=leakcheck
+WorkingDirectory=/opt/leakcheck
+Environment=LEAKCHECK_CONFIG=/etc/leakcheck/config.yaml
+ExecStart=/opt/leakcheck/.venv/bin/python -m leakcheck dns
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/leakcheck
+# Binding port 53 requires CAP_NET_BIND_SERVICE; nothing else.
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

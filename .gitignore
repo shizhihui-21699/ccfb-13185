@@ -1,3 +1,21 @@
+# 本地运行产物
+data/
+*.db
+*.db-wal
+*.db-shm
+config.yaml
+*.log
+.pytest_cache/
+
+# 部署时由运维填写的真实配置
+deploy/config.yaml
+
+# editable install metadata
+*.egg-info/
+
+# 工具缓存
+.ruff_cache/
+
 .env
 .env.*
 !.env.example

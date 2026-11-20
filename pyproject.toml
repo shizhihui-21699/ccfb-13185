@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leakcheck"
+version = "1.0.0"
+description = "VPN 流量泄露自检：DNS 出口 / WebRTC / IPv6 分流检测"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.36",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "dnslib>=0.9.24,<0.10",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "playwright>=1.44",
+]
+
+[project.scripts]
+leakcheck = "leakcheck.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["leakcheck*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.*",
+]

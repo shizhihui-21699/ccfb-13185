@@ -1,0 +1,28 @@
+[Unit]
+Description=VPN Leak Check Streamlit UI
+Documentation=file:///opt/leakcheck/README.md
+After=network-online.target leakcheck-collector.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=leakcheck
+Group=leakcheck
+WorkingDirectory=/opt/leakcheck
+Environment=LEAKCHECK_CONFIG=/etc/leakcheck/config.yaml
+ExecStart=/opt/leakcheck/.venv/bin/python -m streamlit run leakcheck/app.py \
+    --server.address 127.0.0.1 \
+    --server.port 8501 \
+    --server.headless true \
+    --browser.gatherUsageStats false \
+    --server.enableXsrfProtection true
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/leakcheck
+
+[Install]
+WantedBy=multi-user.target

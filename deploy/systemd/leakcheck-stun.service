@@ -1,0 +1,24 @@
+[Unit]
+Description=VPN Leak Check STUN probe (UDP egress observation)
+Documentation=file:///opt/leakcheck/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=leakcheck
+Group=leakcheck
+WorkingDirectory=/opt/leakcheck
+Environment=LEAKCHECK_CONFIG=/etc/leakcheck/config.yaml
+ExecStart=/opt/leakcheck/.venv/bin/python -m leakcheck stun
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/leakcheck
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
